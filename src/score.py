@@ -139,7 +139,7 @@ class Audio:
         return self._extract_features(librosa.feature.melspectrogram)
     
 if __name__ == "__main__":
-    audio = Audio(r"D:\Code\Music_score\src\test.mp3")
+    audio = Audio(r"D:\CODE\Project\Music_score\src\test.mp3")
     tempo = audio.get_tempo()
     
     print(f"Tempo: {tempo}")
@@ -149,8 +149,8 @@ if __name__ == "__main__":
     MEL, D_MEL, mel_stats = audio.get_mel()
     CENS, D_CENS, cens_stats = audio.get_cens()
 
-    # AudioTools.show(CQT, sr=audio.sr, y_axis='chroma', title="CQT")
-    # AudioTools.show(D_MEL, sr=audio.sr, y_axis='mel', title="MEL (dB)")
+    AudioTools.show(CQT, sr=audio.sr, y_axis='chroma', title="CQT")
+    AudioTools.show(D_MEL, sr=audio.sr, y_axis='mel', title="MEL (dB)")
     # AudioTools.show(CENS, sr=audio.sr, y_axis='chroma', title="CENS")
     # AudioTools.show(D_MFCC, sr=audio.sr, title="MFCC (dB)")
     
