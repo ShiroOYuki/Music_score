@@ -71,8 +71,11 @@ class AudioFeatures:
         })
         return df.__str__()
 
-    def to_array(self):
-        return [
+    def __array__(self, dtype=None):
+        return self.to_array(dtype=dtype)
+    
+    def to_array(self, dtype=None):
+        return np.array([
             self.kurtosis,
             self.max,
             self.mean,
@@ -80,7 +83,7 @@ class AudioFeatures:
             self.min,
             self.skew,
             self.std
-        ]
+        ], dtype=dtype)
     
 class AudioTools:
     @classmethod
@@ -117,8 +120,6 @@ class AudioTools:
                 A 2D binary array of the same shape as `data`, where the maximum value in each column 
                 is set to 1, and all other values are set to 0.
         """
-
-        
         idx = np.argmax(data, axis=0)
         max_d = np.zeros(data.shape)
         max_d[idx, np.arange(data.shape[1])] = 1
@@ -197,47 +198,106 @@ class AudioTools:
             skew = skew(data, axis=1),
             std = np.std(data, axis=1)
         )
-
-
         
-def load(filepath: str):
-    filename = os.path.basename(filepath)
+    @classmethod
+    def get_stats_2D(cls, data: np.ndarray):
+        data = data.astype(np.float64)
+        return AudioFeatures(
+            kurtosis = kurtosis(data, axis=2),
+            max = np.max(data, axis=2),
+            mean = np.mean(data, axis=2),
+            median = np.median(data, axis=2),
+            min = np.min(data, axis=2),
+            skew = skew(data, axis=2),
+            std = np.std(data, axis=2)
+        )
     
-    if 'features' in filename:
-        return pd.read_csv(filepath, index_col=0, header=[0, 1, 2])
-
-    if 'echonest' in filename:
-        return pd.read_csv(filepath, index_col=0, header=[0, 1, 2])
-
-    if 'genres' in filename:
-        return pd.read_csv(filepath, index_col=0)
-
-    if 'tracks' in filename:
-        tracks = pd.read_csv(filepath, index_col=0, header=[0, 1])
+    
+    
+class FMA:
+    def __init__(self):
+        self.features = None
+        self.echonest = None
+        self.genres = None
+        self.tracks = None
+    
+    def load(self, filepath: str):
+        filename = os.path.basename(filepath)
         
-        # 將 csv 內的字串轉換為正確的資料型態
-        COLUMNS = [('track', 'tags'), ('album', 'tags'), ('artist', 'tags'),
-                   ('track', 'genres'), ('track', 'genres_all')]
-        for column in COLUMNS:
-            tracks[column] = tracks[column].map(ast.literal_eval)
+        if 'features' in filename:
+            self.features = pd.read_csv(filepath, index_col=0, header=[0, 1, 2])
+            return self.features
 
-        # 將 pd.table 內有關時間的欄位轉換為 datetime
-        COLUMNS = [('track', 'date_created'), ('track', 'date_recorded'),
-                   ('album', 'date_created'), ('album', 'date_released'),
-                   ('artist', 'date_created'), ('artist', 'active_year_begin'),
-                   ('artist', 'active_year_end')]
-        for column in COLUMNS:
-            tracks[column] = pd.to_datetime(tracks[column])
+        if 'echonest' in filename:
+            self.echonest = pd.read_csv(filepath, index_col=0, header=[0, 1, 2])
+            return self.echonest
 
+        if 'genres' in filename:
+            self.genres = pd.read_csv(filepath, index_col=0)
+            return self.genres
+
+        if 'tracks' in filename:
+            tracks = pd.read_csv(filepath, index_col=0, header=[0, 1])
+            
+            # 將 csv 內的字串轉換為正確的資料型態
+            COLUMNS = [('track', 'tags'), ('album', 'tags'), ('artist', 'tags'),
+                    ('track', 'genres'), ('track', 'genres_all')]
+            for column in COLUMNS:
+                tracks[column] = tracks[column].map(ast.literal_eval)
+
+            # 將 pd.table 內有關時間的欄位轉換為 datetime
+            COLUMNS = [('track', 'date_created'), ('track', 'date_recorded'),
+                    ('album', 'date_created'), ('album', 'date_released'),
+                    ('artist', 'date_created'), ('artist', 'active_year_begin'),
+                    ('artist', 'active_year_end')]
+            for column in COLUMNS:
+                tracks[column] = pd.to_datetime(tracks[column])
+
+            
+            SUBSETS = ('small', 'medium', 'large')
+            tracks['set', 'subset'] = tracks['set', 'subset'].astype(
+                        pd.CategoricalDtype(categories=SUBSETS, ordered=True))
+
+            COLUMNS = [('track', 'genre_top'), ('track', 'license'),
+                    ('album', 'type'), ('album', 'information'),
+                    ('artist', 'bio')]
+            for column in COLUMNS:
+                tracks[column] = tracks[column].astype('category')
+
+            self.tracks = tracks
+            
+            return self.tracks
+    
+    def train_data(self, size: Literal['small', 'medium']):
+        size = self.tracks['set', 'subset'] <= size
         
-        SUBSETS = ('small', 'medium', 'large')
-        tracks['set', 'subset'] = tracks['set', 'subset'].astype(
-                    pd.CategoricalDtype(categories=SUBSETS, ordered=True))
+        train = self.tracks['set', 'split'] == 'training'
+        val = self.tracks['set', 'split'] == 'validation'
+        test = self.tracks['set', 'split'] == 'test'
 
-        COLUMNS = [('track', 'genre_top'), ('track', 'license'),
-                   ('album', 'type'), ('album', 'information'),
-                   ('artist', 'bio')]
-        for column in COLUMNS:
-            tracks[column] = tracks[column].astype('category')
+        X_train = self.features.loc[size & train, 'mfcc']
+        X_val = self.features.loc[size & val, 'mfcc']
+        X_test = self.features.loc[size & test, 'mfcc']
 
-        return tracks
+        Y_train = self.tracks.loc[size & train, ('track', 'genre_top')]
+        Y_val = self.tracks.loc[size & val, ('track', 'genre_top')]
+        Y_test = self.tracks.loc[size & test, ('track', 'genre_top')]
+        
+        return (X_train, Y_train), (X_val, Y_val), (X_test, Y_test)
+    
+    def top_genres(self, size=Literal['small', 'medium'], show=False):
+        size = self.tracks['set', 'subset'] <= size
+        top_genres = self.tracks.loc[size, ('track', 'genre_top')].unique()
+        
+        if show:
+            print("Genres".ljust(20, " ") + " |  Count")
+            print("-"*28)
+            for tg in top_genres:
+                count = len(self.tracks.loc[size & (self.tracks['track', 'genre_top'] == tg)])
+                print(f"{tg.ljust(20, " ")} | \t{count}")
+        
+        return top_genres
+    
+def min_max_scaling(data: np.ndarray):
+    s, b = min(data), max(data)
+    return (data - s) / (b - s)
