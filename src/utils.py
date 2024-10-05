@@ -2,13 +2,18 @@ import librosa
 import numpy as np
 import os
 import ast
+import sys
 
 import matplotlib.pyplot as plt
 import matplotlib.axes as axes
 import pandas as pd
 
-from typing import Literal, Optional
+from typing import Literal, Optional, Callable
 from scipy.stats import kurtosis, skew
+from sklearn.preprocessing import LabelEncoder
+from keras.src.models import Model
+from keras.src.callbacks import Callback
+from sklearn.manifold import TSNE
 
 class AudioFeatures:
     """
@@ -268,16 +273,16 @@ class FMA:
             
             return self.tracks
     
-    def train_data(self, size: Literal['small', 'medium']):
+    def train_data(self, size: Literal['small', 'medium'], feature: Literal['mfcc', 'chroma_cens']='mfcc'):
         size = self.tracks['set', 'subset'] <= size
         
         train = self.tracks['set', 'split'] == 'training'
         val = self.tracks['set', 'split'] == 'validation'
         test = self.tracks['set', 'split'] == 'test'
 
-        X_train = self.features.loc[size & train, 'mfcc']
-        X_val = self.features.loc[size & val, 'mfcc']
-        X_test = self.features.loc[size & test, 'mfcc']
+        X_train = self.features.loc[size & train, feature]
+        X_val = self.features.loc[size & val, feature]
+        X_test = self.features.loc[size & test, feature]
 
         Y_train = self.tracks.loc[size & train, ('track', 'genre_top')]
         Y_val = self.tracks.loc[size & val, ('track', 'genre_top')]
@@ -294,10 +299,102 @@ class FMA:
             print("-"*28)
             for tg in top_genres:
                 count = len(self.tracks.loc[size & (self.tracks['track', 'genre_top'] == tg)])
-                print(f"{tg.ljust(20, " ")} | \t{count}")
+                print(f"{tg.ljust(20, ' ')} | \t{count}")
         
         return top_genres
+
+class CustomProgressBar(Callback):
+    def __init__(self, total_epoch: int, name: str):
+        self.total_epoch = total_epoch
+        self.name = name
+        self.count = 1
     
+    def on_epoch_begin(self, epoch, logs=None):
+        pass
+    
+    def on_epoch_end(self, epoch, logs=None):
+        # 打印簡單的 epoch 進度條
+        sys.stdout.write(f'\rEpoch {epoch+1}/{self.total_epoch} - loss: {logs["loss"]:.4f} - val_loss: {logs["val_loss"]:.4f}')
+        
+    def on_batch_begin(self, batch, logs=None):
+        pass
+    
+    def on_batch_end(self, batch, logs=None):
+        pass
+    
+    def on_train_begin(self, logs=None):
+        sys.stdout.write(f'# {self.name}\n')
+    
+    def on_train_end(self, logs=None):
+        pass
+
+class TestModel:
+    class ModelSettings:
+        def __init__(self, epochs: int=50, batch_size: int=32):
+            self.epochs = epochs
+            self.batch_size = batch_size
+            
+            
+    def __init__(self, func: Callable, settings: tuple[ModelSettings], name:str="Model"):
+        self.model_func = func
+        self.settings = settings
+        self.name = name
+        
+    def _show_loss(self, hist):
+        fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+        fig.suptitle('Loss Over Time', fontsize=20)
+
+        ax[0].plot(hist.history['loss'], label='Training Loss')
+        ax[0].set
+        ax[0].set_xlabel('Epochs')
+        ax[0].set_ylabel('Loss')
+        ax[0].legend()
+
+        ax[1].plot(hist.history['val_loss'], label='Validation Loss')
+        ax[1].set_xlabel('Epochs')
+        ax[1].set_ylabel('Loss')
+        ax[1].legend()
+
+        plt.tight_layout()
+        plt.show()
+        
+    def _show_tsne(self, X_test, Y_test, encoder: Model):
+        le = LabelEncoder()
+        le.fit(Y_test)
+        Y_test = le.transform(Y_test)
+        print(np.unique(Y_test).shape)
+
+        encoded_features = encoder.predict(X_test)
+        tsne = TSNE(n_components=2)
+        encoded_2d = tsne.fit_transform(encoded_features.reshape(-1, 20))
+
+        plt.scatter(encoded_2d[:, 0], encoded_2d[:, 1], c=Y_test, cmap='inferno', alpha=1)
+        plt.title('2D Visualization of Encoded Features')
+        plt.colorbar()
+        plt.show()
+    
+    def test(self, x, y, val, X_test, Y_test, name: str = "Model"):
+        for i, setting in enumerate(self.settings):
+            encoder, autoencoder = self.model_func()
+            autoencoder.compile(optimizer='adam', loss='mse')
+            hist = autoencoder.fit(
+                x, 
+                y, 
+                validation_data=val, 
+                epochs=setting.epochs, 
+                batch_size=setting.batch_size, 
+                verbose=0, 
+                callbacks=[
+                    CustomProgressBar(
+                        total_epoch=setting.epochs,
+                        name = f"{name} - {i+1}"
+                    )
+                ]
+            )
+            self._show_loss(hist)
+            self._show_tsne(X_test, Y_test, encoder=encoder)
+            
+
 def min_max_scaling(data: np.ndarray):
     s, b = min(data), max(data)
     return (data - s) / (b - s)
