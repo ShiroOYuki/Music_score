@@ -5,7 +5,10 @@ import ast
 import sys
 
 import matplotlib.pyplot as plt
-import matplotlib.axes as axes
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+from matplotlib.colors import Normalize
+from matplotlib.cm import ScalarMappable
 import pandas as pd
 
 from typing import Literal, Optional, Callable
@@ -152,7 +155,7 @@ class AudioTools:
         title: Optional[str] = "",
         frame_end: Optional[int] = 1000, 
         y_axis: Optional[Literal["chroma", "mel"]] = None, 
-        ax: Optional[axes.Axes] = None,
+        ax: Optional[Axes] = None,
         show: Optional[bool] = True
     ):
         """
@@ -340,12 +343,12 @@ class TestModel:
         self.settings = settings
         self.name = name
         
-    def _show_loss(self, hist):
-        fig, ax = plt.subplots(1, 2, figsize=(12, 5))
-        fig.suptitle('Loss Over Time', fontsize=20)
-
+    def _draw_loss(self, hist, fig: Figure=None, ax: Axes=None):
+        if fig is None or ax is None:
+            fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+            fig.suptitle('Loss Over Time', fontsize=20)
+        
         ax[0].plot(hist.history['loss'], label='Training Loss')
-        ax[0].set
         ax[0].set_xlabel('Epochs')
         ax[0].set_ylabel('Loss')
         ax[0].legend()
@@ -356,24 +359,45 @@ class TestModel:
         ax[1].legend()
 
         plt.tight_layout()
+        
+    def _show_loss(self, **kwargs):
+        self._draw_loss(**kwargs)
         plt.show()
         
-    def _show_tsne(self, X_test, Y_test, encoder: Model):
-        le = LabelEncoder()
-        le.fit(Y_test)
-        Y_test = le.transform(Y_test)
-        print(np.unique(Y_test).shape)
-
+    def _draw_tsne(self, X_test, Y_test, encoder: Model, fig: Figure=None, ax: Axes=None):
+        if fig is None or ax is None:
+            fig, ax = plt.subplots(1, 1)
+            fig.suptitle('2D Visualization of Encoded Features', fontsize=20)
+        
+        ax.set_box_aspect(1) 
         encoded_features = encoder.predict(X_test)
         tsne = TSNE(n_components=2)
         encoded_2d = tsne.fit_transform(encoded_features.reshape(-1, 20))
-
-        plt.scatter(encoded_2d[:, 0], encoded_2d[:, 1], c=Y_test, cmap='inferno', alpha=1)
-        plt.title('2D Visualization of Encoded Features')
-        plt.colorbar()
+        
+        im = ax.scatter(encoded_2d[:, 0], encoded_2d[:, 1], c=Y_test, cmap='inferno', alpha=1)
+        
+        norm = Normalize(vmin=np.min(Y_test), vmax=np.max(Y_test))
+        sm = ScalarMappable(norm=norm, cmap='inferno')
+        sm.set_array([])
+        
+        fig.colorbar(sm, ax=ax)
+        
+    def _show_tsne(self, **kwargs):
+        Y = kwargs.get("Y_test")
+        kwargs["Y_test"] = self.encode_labels(Y)
+        self._draw_tsne(**kwargs)
         plt.show()
     
+    def encode_labels(self, Y):
+        le = LabelEncoder()
+        le.fit(Y)
+        Y = le.transform(Y)
+        return Y
+    
     def test(self, x, y, val, X_test, Y_test, name: str = "Model"):
+        count = len(self.settings)
+        fig_loss, ax_loss = plt.subplots(count, 2, figsize=(6, 6))
+        fig_tsne, ax_tsne = plt.subplots(1, count, figsize=(6, 6))
         for i, setting in enumerate(self.settings):
             encoder, autoencoder = self.model_func()
             autoencoder.compile(optimizer='adam', loss='mse')
@@ -391,8 +415,10 @@ class TestModel:
                     )
                 ]
             )
-            self._show_loss(hist)
-            self._show_tsne(X_test, Y_test, encoder=encoder)
+            self._draw_loss(hist, fig=fig_loss, ax=ax_loss[i])
+            self._draw_tsne(X_test, self.encode_labels(Y_test), encoder=encoder, fig=fig_tsne, ax=ax_tsne[i])
+        plt.tight_layout()
+        plt.show()
             
 
 def min_max_scaling(data: np.ndarray):
