@@ -396,8 +396,16 @@ class TestModel:
     
     def test(self, x, y, val, X_test, Y_test, name: str = "Model"):
         count = len(self.settings)
-        fig_loss, ax_loss = plt.subplots(count, 2, figsize=(6, 6))
-        fig_tsne, ax_tsne = plt.subplots(1, count, figsize=(6, 6))
+        fig_loss, ax_loss = plt.subplots(count, 2, figsize=(6, 3*count))
+        fig_tsne, ax_tsne = plt.subplots(1, count, figsize=(6*count, 6))
+        
+        for ax in ax_loss.flatten():
+            ax.set_box_aspect(1)
+            
+        for ax in ax_tsne.flatten():
+            ax.set_box_aspect(1)
+            
+            
         for i, setting in enumerate(self.settings):
             encoder, autoencoder = self.model_func()
             autoencoder.compile(optimizer='adam', loss='mse')
@@ -417,7 +425,12 @@ class TestModel:
             )
             self._draw_loss(hist, fig=fig_loss, ax=ax_loss[i])
             self._draw_tsne(X_test, self.encode_labels(Y_test), encoder=encoder, fig=fig_tsne, ax=ax_tsne[i])
-        plt.tight_layout()
+            
+        fig_loss.suptitle('Loss Over Time', fontsize=20)
+        fig_tsne.suptitle('2D Visualization of Encoded Features', fontsize=20)
+        
+        fig_loss.tight_layout()
+        fig_tsne.tight_layout()
         plt.show()
             
 
