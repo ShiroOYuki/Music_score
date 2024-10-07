@@ -73,7 +73,7 @@ class Audio:
             
             # ((0, 0), (0, pad_width)): (([0]left, [0]right), ([1]left, [1]right))
             data_padded = np.pad(db, pad_width=((0, 0), (0, pad_width)), mode='constant')
-            data_seg = data_padded.reshape(20, -1, 10)
+            data_seg = data_padded.reshape(kwargs.get("n_mfcc"), -1, segment_size)
             stats = AudioTools.get_stats_2D(data_seg)
         return data, db, stats
     

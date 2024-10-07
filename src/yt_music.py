@@ -17,7 +17,7 @@ class Downloader:
                 'preferredcodec': 'm4a',
             }],
             'paths': {
-                'home': './data/temp'
+                'home': './data/music/temp'
             },
             'outtmpl': {
                 'default': '%(id)s.%(ext)s'
@@ -47,4 +47,8 @@ class Downloader:
         
 if __name__ == "__main__":
     # download("https://www.youtube.com/watch?v=t3kOeUsnocg")
-    Downloader.download(input("URL: "))
+    while True:
+        try:
+            Downloader.download(input("URL: "))
+        except:
+            break
