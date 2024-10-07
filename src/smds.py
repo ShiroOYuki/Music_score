@@ -23,14 +23,23 @@ class SMDSMaker:
 
     def single_df(self, s):
         """
-        s: 
-        0: ticks
-        1: n_mfcc
-        2: stats
-        
-        reshaped:
-        0: ticks
-        1: n_mfcc*stats
+        Reshapes the input NumPy array `s` and converts it into a pandas DataFrame.
+
+        Parameters
+        -------
+        s (np.ndarray, shape=(ticks, n_mfcc, stats)): 
+            A 3D NumPy array containing time steps (ticks), MFCC features (n_mfcc), and statistical values (stats).
+            - ticks: The number of time steps
+            - n_mfcc: The number of MFCC features at each time step
+            - stats: The statistical values for each MFCC feature
+
+        Returns
+        -------
+        df (pd.DataFrame): 
+            A pandas DataFrame with the index as 'ticks' and multi-level columns.
+            The first level of the columns is the range of `n_mfcc` (total 80 features),
+            and the second level corresponds to the statistical values ('kurtosis', 'max', 
+            'mean', 'median', 'min', 'skew', 'std').
         """
         reshaped = s.reshape(s.shape[0], -1)
 
@@ -42,6 +51,28 @@ class SMDSMaker:
         return df
     
     def make(self, dirpath: str, output_path: str):
+        """
+        Processes a directory of .mp3 files, extracts statistical features, and saves the result as a CSV file.
+
+        Parameters
+        ----------
+        dirpath : str
+            The path to the directory containing the .mp3 files.
+        output_path : str
+            The path where the resulting CSV file will be saved.
+
+        Returns
+        -------
+        None
+            The function does not return anything. The result is saved as a CSV file at the specified `output_path`.
+        
+        Process
+        -------
+        - The function searches for all .mp3 files in the given directory.
+        - For each file, it reads statistical features using `self.read_stats(file)` and converts the result into a DataFrame using `self.single_df(s)`.
+        - It combines all individual DataFrames into a single DataFrame with a multi-level index. The first level corresponds to `track_id` (extracted from the file name), and the second level corresponds to `tick` (time points).
+        - The final DataFrame is saved as a CSV file.
+        """
         files = glob.glob(os.path.join(os.path.abspath(dirpath), "*.mp3"))
 
         n_file = len(files)
