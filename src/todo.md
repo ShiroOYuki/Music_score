@@ -11,3 +11,4 @@
 ## Todos
 - [try MSD dataset](https://www.ifs.tuwien.ac.at/mir/msd/download.html#splits)
 - [paper](https://www.mdpi.com/2076-3417/14/2/855)
+- [MagnaTagATune](https://github.com/keunwoochoi/magnatagatune-list)
