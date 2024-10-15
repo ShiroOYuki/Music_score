@@ -73,24 +73,32 @@ class SMDSMaker:
         - It combines all individual DataFrames into a single DataFrame with a multi-level index. The first level corresponds to `track_id` (extracted from the file name), and the second level corresponds to `tick` (time points).
         - The final DataFrame is saved as a CSV file.
         """
-        files = glob.glob(os.path.join(os.path.abspath(dirpath), "*.mp3"))
+        files = glob.glob(os.path.join(os.path.abspath(dirpath), "*.wav"))
 
         n_file = len(files)
         df_list = [None]*n_file
 
         with alive_bar(n_file) as bar:
             for i, file in enumerate(files):
-                s = self.read_stats(file)
-                sdf = self.single_df(s)
-                df_list[i] = sdf
-                bar()
+                try:
+                    s = self.read_stats(file)
+                    sdf = self.single_df(s)
+                    df_list[i] = sdf
+                    bar()
+                except:
+                    print(f"Error: {file}")
+                    bar()
+                    continue
+                    
                 
         def split_id(file):
-            id = os.path.splitext(os.path.basename(file))[0]
-            return id if not id.isdigit() else int(id)
+            # id = os.path.splitext(os.path.basename(file))[0]
+            # return id if not id.isdigit() else int(id)
+            return os.path.basename(file)
             
         
-        dataset = pd.concat(df_list, keys=[split_id(i) for i in files], names=['track_id', 'tick'])
+        dataset = pd.concat(df_list, keys=[(i, split_id(f)) for i, f in enumerate(files)], names=['id', 'filename', 'tick'])
+        print("Saving...")
         dataset.to_csv(os.path.abspath(output_path), index=True)
 
 
@@ -101,7 +109,7 @@ class SMDS:
     
     def load(self, filepath: str):
         filepath = os.path.abspath(filepath)
-        df = pd.read_csv(filepath, index_col=[0, 1], header=[0, 1, 2])
+        df = pd.read_csv(filepath, index_col=[0, 1, 2], header=[0, 1])
         return df
     
     def to_array(self, df: pd.DataFrame) -> np.ndarray:
@@ -119,7 +127,7 @@ def test():
     df = smds.load(output)
     df_array = smds.to_array(df)
 
-    files = glob.glob(os.path.join(dirpath, "*.mp3"))
+    files = glob.glob(os.path.join(dirpath, "*.wav"))
     data = df_array.reshape((len(files), -1, 80, 7))
     print(data.shape)
     
@@ -127,13 +135,16 @@ def test():
     print(data[0, 100, 1, :])
     
 
+
 if __name__ == '__main__':
-    dirpath = "./data/fma_small/fma_small/**"
+    dirpath = "./data/gtzan/genres_original/**"
     output = "./data/smds/smds.csv"
 
+    print("Making...")
     maker = SMDSMaker()
     maker.make(dirpath, output)
     
+    print("Loading...")
     smds = SMDS()
     df = smds.load(output)
     print(df) 
