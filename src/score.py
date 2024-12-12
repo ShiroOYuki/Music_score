@@ -156,14 +156,14 @@ if __name__ == "__main__":
     MFCC, D_MFCC, mfcc_stats = audio.get_mfcc(segment_size=10)
     mfcc_stats = np.array(mfcc_stats).transpose(1, 2, 0)
 
-    # CQT, D_CQT, cqt_stats = audio.get_cqt()
-    # MEL, D_MEL, mel_stats = audio.get_mel()
-    # CENS, D_CENS, cens_stats = audio.get_cens()
+    CQT, D_CQT, cqt_stats = audio.get_cqt()
+    MEL, D_MEL, mel_stats = audio.get_mel()
+    CENS, D_CENS, cens_stats = audio.get_cens()
     
-    # AudioTools.show(CQT, sr=audio.sr, y_axis='chroma', title="CQT")
-    # AudioTools.show(D_MEL, sr=audio.sr, y_axis='mel', title="MEL (dB)")
-    # AudioTools.show(CENS, sr=audio.sr, y_axis='chroma', title="CENS")
-    # AudioTools.show(D_MFCC, sr=audio.sr, title="MFCC (dB)")
+    AudioTools.show(CQT, sr=audio.sr, y_axis='chroma', title="CQT")
+    AudioTools.show(D_MEL, sr=audio.sr, y_axis='mel', title="MEL (dB)")
+    AudioTools.show(CENS, sr=audio.sr, y_axis='chroma', title="CENS")
+    AudioTools.show(D_MFCC, sr=audio.sr, title="MFCC (dB)")
     
     print(mfcc_stats.shape)
     
