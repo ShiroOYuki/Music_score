@@ -50,6 +50,8 @@ class FeatureExtractor:
             return features if format == "float32" else ",".join(map(str, features))
         return None
 
+
+
 def features_rebuild(features_str: str):
     return np.array(features_str.split(","), dtype=np.float32)
 
@@ -62,6 +64,7 @@ def main():
             print(f"Output: {features}")
             print(f"Rebuild: {features_rebuild(features)}")
         
+
             
 if __name__ == "__main__":
     main()
