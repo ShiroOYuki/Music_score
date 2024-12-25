@@ -99,6 +99,8 @@ class SMDSMaker:
         
         dataset = pd.concat(df_list, keys=[(i, split_id(f)) for i, f in enumerate(files)], names=['id', 'filename', 'tick'])
         print("Saving...")
+        if (not os.path.isdir(os.path.dirname(output_path))):
+            os.makedirs(os.path.dirname(output_path))
         dataset.to_csv(os.path.abspath(output_path), index=True)
 
 
