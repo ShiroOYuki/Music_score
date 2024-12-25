@@ -39,7 +39,7 @@
     - Usage:
     Helpful for developers testing feature extraction and similarity algorithms.
 
-3. `yt_music.py
+3. `yt_music.py`
 
     A utility for downloading music from YouTube and preprocessing it for further analysis.
 
