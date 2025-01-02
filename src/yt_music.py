@@ -10,6 +10,7 @@ AudioSegment.converter = which("ffmpeg")
 class Downloader:
     @classmethod
     def download(cls, url, to=None, quiet=False):
+        home = './data/music/temp' if to is None else os.path.join(to, "temp")
         opts = {
             'format': 'm4a/bestaudio/best',
             'postprocessors': [{
@@ -17,12 +18,18 @@ class Downloader:
                 'preferredcodec': 'm4a',
             }],
             'paths': {
-                'home': './data/music/temp'
+                'home': home
             },
             'outtmpl': {
                 'default': '%(id)s.%(ext)s'
             },
-            'quiet': quiet
+            'quiet': quiet,
+            'download_ranges': yt_dlp.utils.download_range_func(
+                [], 
+                [[0.0, 30.0]]
+            ),
+            'ignoreerrors': 'only_download',
+            'no_warnings': True
         }
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
@@ -30,8 +37,8 @@ class Downloader:
             filepath = ydl.prepare_filename(info, outtmpl=opts['outtmpl']['default'])
             abspath = os.path.abspath(filepath)
             if to is None:
-                to = abspath
-            return cls.m4a_to_mp3(abspath, to)
+                to = os.path.dirname(abspath)
+            # return cls.m4a_to_mp3(abspath, to)
         return None
             
     @classmethod
@@ -45,15 +52,20 @@ class Downloader:
         output_path = os.path.join(output_path, filename)
         
         audio.export(output_path, format="mp3")
-        print(f"[output] {output_path}")
+        # print(f"[output] {output_path}")
         os.remove(input_file)
         return output_path
 
         
 if __name__ == "__main__":
     # download("https://www.youtube.com/watch?v=t3kOeUsnocg")
-    while True:
-        try:
-            Downloader.download(input("URL: "))
-        except:
-            break
+    # while True:
+    #     try:
+    #         Downloader.download(input("URL: "), to="./data/music/download", quiet=False)
+    #     except Exception as e:
+    #         print(e)
+    
+    playlistDir = "./data/music/download/test"
+    for i, file in enumerate(os.listdir(os.path.join(playlistDir, "temp"))):
+        print(f"\r{i+1}/2")
+        Downloader.m4a_to_mp3(os.path.join(playlistDir, "temp", file), playlistDir)
