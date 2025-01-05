@@ -104,6 +104,8 @@ class SMDSMaker:
             os.makedirs(os.path.dirname(output_path))
         dataset.to_csv(os.path.abspath(output_path), index=True)
         
+        return
+        
     def make_tempo_df(self, dirpath, output_path):
         files = glob.glob(os.path.join(os.path.abspath(dirpath), "*.wav"))
         data = []
@@ -125,6 +127,7 @@ class SMDSMaker:
         if (not os.path.isdir(os.path.dirname(output_path))):
             os.makedirs(os.path.dirname(output_path))
         dataset.to_csv(os.path.abspath(output_path), index=False)
+        return
 
 
 
@@ -173,10 +176,11 @@ if __name__ == '__main__':
 
     print("Making...")
     maker = SMDSMaker(track=13)
-    # maker.make(dirpath, output)
-    maker.make_tempo_df(dirpath, tempo_output)
+    maker.make(dirpath, output)
+    # maker.make_tempo_df(dirpath, tempo_output)
     
     print("Loading...")
     smds = SMDS()
-    df = smds.load_tempo(tempo_output)
+    df = smds.load(output)
+    # df = smds.load_tempo(tempo_output)
     print(df) 
