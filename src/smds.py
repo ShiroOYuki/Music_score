@@ -12,12 +12,15 @@ import pandas as pd
 from alive_progress import alive_bar
 
 class SMDSMaker:
+    def __init__(self, track = 80):
+        self.mfcc_track = track
+    
     def read_stats(self, filepath: str):
         audio = Audio(filepath, duration=30)
         # 0: stats
         # 1: n_mfcc
         # 2: ticks
-        _, _, stats = audio.get_mfcc(80, 10)
+        _, _, stats = audio.get_mfcc(self.mfcc_track, 10)
         stats = np.array(stats).transpose(2, 1, 0)
         return stats
 
@@ -44,7 +47,7 @@ class SMDSMaker:
         reshaped = s.reshape(s.shape[0], -1)
 
         math_stats = ['kurtosis', 'max', 'mean', 'median', 'min', 'skew', 'std']
-        multi_columns = pd.MultiIndex.from_product([range(80), math_stats], names=['n_mfcc', 'stat'])
+        multi_columns = pd.MultiIndex.from_product([range(self.mfcc_track), math_stats], names=['n_mfcc', 'stat'])
         df = pd.DataFrame(data=reshaped, columns=multi_columns)
         df.index.name = 'ticks'
 
@@ -92,8 +95,6 @@ class SMDSMaker:
                     
                 
         def split_id(file):
-            # id = os.path.splitext(os.path.basename(file))[0]
-            # return id if not id.isdigit() else int(id)
             return os.path.basename(file)
             
         
@@ -102,6 +103,28 @@ class SMDSMaker:
         if (not os.path.isdir(os.path.dirname(output_path))):
             os.makedirs(os.path.dirname(output_path))
         dataset.to_csv(os.path.abspath(output_path), index=True)
+        
+    def make_tempo_df(self, dirpath, output_path):
+        files = glob.glob(os.path.join(os.path.abspath(dirpath), "*.wav"))
+        data = []
+        col = ['filename', 'tempo']
+        with alive_bar(len(files)) as bar:
+            for i, file in enumerate(files):
+                try:
+                    audio = Audio(file, duration=30)
+                    tempo = audio.get_tempo()
+                    data.append([os.path.basename(file), tempo[0]])
+                    bar()
+                except:
+                    print(f"Error: {file}")
+                    bar()
+                    continue
+                
+        dataset = pd.DataFrame(data, columns=col)
+        print("Saving...")
+        if (not os.path.isdir(os.path.dirname(output_path))):
+            os.makedirs(os.path.dirname(output_path))
+        dataset.to_csv(os.path.abspath(output_path), index=False)
 
 
 
@@ -112,6 +135,11 @@ class SMDS:
     def load(self, filepath: str):
         filepath = os.path.abspath(filepath)
         df = pd.read_csv(filepath, index_col=[0, 1, 2], header=[0, 1])
+        return df
+    
+    def load_tempo(self, filepath: str):
+        filepath = os.path.abspath(filepath)
+        df = pd.read_csv(filepath)
         return df
     
     def to_array(self, df: pd.DataFrame) -> np.ndarray:
@@ -140,13 +168,15 @@ def test():
 
 if __name__ == '__main__':
     dirpath = "./data/gtzan/genres_original/**"
-    output = "./data/smds/smds.csv"
+    output = "./data/smds/smds_13.csv"
+    tempo_output = "./data/smds/smds_13_tempo.csv"
 
     print("Making...")
-    maker = SMDSMaker()
-    maker.make(dirpath, output)
+    maker = SMDSMaker(track=13)
+    # maker.make(dirpath, output)
+    maker.make_tempo_df(dirpath, tempo_output)
     
     print("Loading...")
     smds = SMDS()
-    df = smds.load(output)
+    df = smds.load_tempo(tempo_output)
     print(df) 

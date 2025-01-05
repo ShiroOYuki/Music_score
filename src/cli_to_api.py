@@ -40,7 +40,7 @@ def cli_to_api(opts, cli_defaults=False):
 
 if __name__ == '__main__':
     from pprint import pprint
-
+    
     print('\nThe arguments passed translate to:\n')
     pprint(cli_to_api(sys.argv[1:]))
     print('\nCombining these with the CLI defaults gives:\n')
